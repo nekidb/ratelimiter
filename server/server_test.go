@@ -55,7 +55,7 @@ func TestServeHTTP(t *testing.T) {
 }
 
 func createRequest(ip string) *http.Request {
-	request := httptest.NewRequest("GET", "localhost:8080", nil)
+	request := httptest.NewRequest("GET", "http://localhost:8080/", nil)
 	request.Header.Add("XForwarded-For", ip)
 
 	return request

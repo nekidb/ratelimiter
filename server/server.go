@@ -1,6 +1,9 @@
 package server
 
-import "net/http"
+import (
+	"log"
+	"net/http"
+)
 
 type Limiter interface {
 	Increment(ip string)
@@ -8,19 +11,29 @@ type Limiter interface {
 }
 
 type Server struct {
+	router  *http.ServeMux
 	limiter Limiter
 }
 
 func NewServer(limiter Limiter) *Server {
-	return &Server{
+	router := http.NewServeMux()
+
+	server := &Server{
+		router:  router,
 		limiter: limiter,
 	}
+
+	router.HandleFunc("/", server.defaultHandler)
+
+	return server
 }
 
-func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s Server) defaultHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Serving HTTP")
 	ip := r.Header.Get("XForwarded-For")
 
 	if s.limiter.IsLimited(ip) {
+		log.Println("limited hit")
 		w.WriteHeader(http.StatusTooManyRequests)
 		w.Write([]byte("Too Many Requests"))
 		return
@@ -29,4 +42,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.limiter.Increment(ip)
 
 	w.Write([]byte("Hello, World!"))
+
+}
+
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.router.ServeHTTP(w, r)
 }
