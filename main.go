@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/nekidb/rate_limiter/ratelimiter"
@@ -10,9 +12,20 @@ import (
 )
 
 func main() {
-	prefixSize := 24
-	limit := 100
-	cooldown := 60 * time.Second
+	prefixSize, err := strconv.Atoi(os.Getenv("PREFIX_SIZE"))
+	if err != nil {
+		log.Fatal("can not convert: ", err)
+	}
+
+	limit, err := strconv.Atoi(os.Getenv("RATE_LIMIT"))
+	if err != nil {
+		log.Fatal("can not convert: ", err)
+	}
+
+	cooldown, err := time.ParseDuration(os.Getenv("COOLDOWN"))
+	if err != nil {
+		log.Fatal("can not convert: ", err)
+	}
 
 	l := ratelimiter.NewRateLimiter(prefixSize, limit, cooldown)
 	s := server.NewServer(l)
