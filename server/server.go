@@ -8,6 +8,7 @@ import (
 type Limiter interface {
 	Increment(ip string)
 	IsLimited(ip string) bool
+	Reset(subnet string)
 }
 
 type Server struct {
@@ -29,6 +30,23 @@ func NewServer(limiter Limiter) *Server {
 }
 
 func (s Server) defaultHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Serving HTTP")
+	ip := r.Header.Get("XForwarded-For")
+
+	if s.limiter.IsLimited(ip) {
+		log.Println("limited hit")
+		w.WriteHeader(http.StatusTooManyRequests)
+		w.Write([]byte("Too Many Requests"))
+		return
+	}
+
+	s.limiter.Increment(ip)
+
+	w.Write([]byte("Hello, World!"))
+
+}
+
+func (s Server) resetHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Serving HTTP")
 	ip := r.Header.Get("XForwarded-For")
 
