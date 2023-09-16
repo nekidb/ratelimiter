@@ -56,6 +56,14 @@ func (l *RateLimiter) IsLimited(ip string) bool {
 	return false
 }
 
+func (l *RateLimiter) Reset(subnet string) {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
+	delete(l.counter, subnet)
+	delete(l.lastHits, subnet)
+}
+
 func extractSubnet(ip string, prefixSizeInBits int) string {
 	prefixSizeInBytes := prefixSizeInBits / 8
 
