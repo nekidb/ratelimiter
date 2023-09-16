@@ -10,8 +10,9 @@ import (
 )
 
 func TestRateLimiter(t *testing.T) {
+	limit := 100
 	cooldown := 1 * time.Second
-	limiter := NewRateLimiter(cooldown)
+	limiter := NewRateLimiter(limit, cooldown)
 
 	subnet := "123.123.0"
 
@@ -35,8 +36,9 @@ func TestRateLimiter(t *testing.T) {
 }
 
 func TestServeHTTP(t *testing.T) {
+	limit := 100
 	cooldown := 1 * time.Second
-	limiter := NewRateLimiter(cooldown)
+	limiter := NewRateLimiter(limit, cooldown)
 	server := NewServer(limiter)
 
 	t.Run("returns OK when not limited", func(t *testing.T) {

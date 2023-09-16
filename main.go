@@ -36,14 +36,16 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 type RateLimiter struct {
 	counter  map[string]int
 	lastHits map[string]time.Time
+	limit    int
 	cooldown time.Duration
 	mu       sync.RWMutex
 }
 
-func NewRateLimiter(cooldown time.Duration) *RateLimiter {
+func NewRateLimiter(limit int, cooldown time.Duration) *RateLimiter {
 	return &RateLimiter{
 		counter:  make(map[string]int),
 		lastHits: make(map[string]time.Time),
+		limit:    limit,
 		cooldown: cooldown,
 	}
 }
@@ -68,7 +70,7 @@ func (l *RateLimiter) IsLimited(subnet string) bool {
 		return false
 	}
 
-	if l.counter[subnet] >= 100 {
+	if l.counter[subnet] >= l.limit {
 		return true
 	}
 
@@ -84,8 +86,9 @@ func extractSubnet(ip string, prefixSizeInBits int) string {
 }
 
 func main() {
+	limit := 100
 	cooldown := 60 * time.Second
-	l := NewRateLimiter(cooldown)
+	l := NewRateLimiter(limit, cooldown)
 	s := NewServer(l)
 
 	log.Fatal(http.ListenAndServe(":8080", s))
