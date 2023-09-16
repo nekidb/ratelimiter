@@ -25,6 +25,7 @@ func NewServer(limiter Limiter) *Server {
 	}
 
 	router.HandleFunc("/", server.defaultHandler)
+	router.HandleFunc("/reset", server.resetHandler)
 
 	return server
 }
