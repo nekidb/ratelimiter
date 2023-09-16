@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 )
 
 type Server struct {
@@ -33,25 +34,39 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type RateLimiter struct {
-	counter map[string]int
-	mu      sync.RWMutex
+	counter  map[string]int
+	lastHits map[string]time.Time
+	cooldown time.Duration
+	mu       sync.RWMutex
 }
 
-func NewRateLimiter() *RateLimiter {
+func NewRateLimiter(cooldown time.Duration) *RateLimiter {
 	return &RateLimiter{
-		counter: make(map[string]int),
+		counter:  make(map[string]int),
+		lastHits: make(map[string]time.Time),
+		cooldown: cooldown,
 	}
 }
 
 func (l *RateLimiter) Increment(subnet string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+
+	if lastHit, ok := l.lastHits[subnet]; ok && time.Since(lastHit) > l.cooldown {
+		l.counter[subnet] = 0
+	}
+
 	l.counter[subnet]++
+	l.lastHits[subnet] = time.Now()
 }
 
 func (l *RateLimiter) IsLimited(subnet string) bool {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
+
+	if lastHit, ok := l.lastHits[subnet]; ok && time.Since(lastHit) > l.cooldown {
+		return false
+	}
 
 	if l.counter[subnet] >= 100 {
 		return true
@@ -69,7 +84,8 @@ func extractSubnet(ip string, prefixSizeInBits int) string {
 }
 
 func main() {
-	l := NewRateLimiter()
+	cooldown := 60 * time.Second
+	l := NewRateLimiter(cooldown)
 	s := NewServer(l)
 
 	log.Fatal(http.ListenAndServe(":8080", s))

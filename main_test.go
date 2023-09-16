@@ -4,12 +4,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestRateLimiter(t *testing.T) {
-	limiter := NewRateLimiter()
+	cooldown := 1 * time.Second
+	limiter := NewRateLimiter(cooldown)
 
 	subnet := "123.123.0"
 
@@ -24,10 +26,17 @@ func TestRateLimiter(t *testing.T) {
 	if !limiter.IsLimited(subnet) {
 		t.Fatal("Has to be limited")
 	}
+
+	time.Sleep(cooldown + 1*time.Second)
+
+	if limiter.IsLimited(subnet) {
+		t.Fatal("Has not to be limited")
+	}
 }
 
 func TestServeHTTP(t *testing.T) {
-	limiter := NewRateLimiter()
+	cooldown := 1 * time.Second
+	limiter := NewRateLimiter(cooldown)
 	server := NewServer(limiter)
 
 	t.Run("returns OK when not limited", func(t *testing.T) {
