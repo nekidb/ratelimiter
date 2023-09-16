@@ -20,39 +20,42 @@ func NewServer(limiter *RateLimiter) *Server {
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ip := r.Header.Get("XForwarded-For")
-	subnet := extractSubnet(ip, 24)
 
-	if s.limiter.IsLimited(subnet) {
+	if s.limiter.IsLimited(ip) {
 		w.WriteHeader(http.StatusTooManyRequests)
 		w.Write([]byte("Too many requests"))
 		return
 	}
 
-	s.limiter.Increment(subnet)
+	s.limiter.Increment(ip)
 
 	w.Write([]byte("Hello, World!"))
 }
 
 type RateLimiter struct {
-	counter  map[string]int
-	lastHits map[string]time.Time
-	limit    int
-	cooldown time.Duration
-	mu       sync.RWMutex
+	counter    map[string]int
+	lastHits   map[string]time.Time
+	prefixSize int
+	limit      int
+	cooldown   time.Duration
+	mu         sync.RWMutex
 }
 
-func NewRateLimiter(limit int, cooldown time.Duration) *RateLimiter {
+func NewRateLimiter(prefixSize int, limit int, cooldown time.Duration) *RateLimiter {
 	return &RateLimiter{
-		counter:  make(map[string]int),
-		lastHits: make(map[string]time.Time),
-		limit:    limit,
-		cooldown: cooldown,
+		counter:    make(map[string]int),
+		lastHits:   make(map[string]time.Time),
+		prefixSize: prefixSize,
+		limit:      limit,
+		cooldown:   cooldown,
 	}
 }
 
-func (l *RateLimiter) Increment(subnet string) {
+func (l *RateLimiter) Increment(ip string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+
+	subnet := extractSubnet(ip, l.prefixSize)
 
 	if lastHit, ok := l.lastHits[subnet]; ok && time.Since(lastHit) > l.cooldown {
 		l.counter[subnet] = 0
@@ -62,9 +65,11 @@ func (l *RateLimiter) Increment(subnet string) {
 	l.lastHits[subnet] = time.Now()
 }
 
-func (l *RateLimiter) IsLimited(subnet string) bool {
+func (l *RateLimiter) IsLimited(ip string) bool {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
+
+	subnet := extractSubnet(ip, l.prefixSize)
 
 	if lastHit, ok := l.lastHits[subnet]; ok && time.Since(lastHit) > l.cooldown {
 		return false
@@ -86,9 +91,10 @@ func extractSubnet(ip string, prefixSizeInBits int) string {
 }
 
 func main() {
+	prefixSize := 24
 	limit := 100
 	cooldown := 60 * time.Second
-	l := NewRateLimiter(limit, cooldown)
+	l := NewRateLimiter(prefixSize, limit, cooldown)
 	s := NewServer(l)
 
 	log.Fatal(http.ListenAndServe(":8080", s))
