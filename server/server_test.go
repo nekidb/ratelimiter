@@ -1,4 +1,4 @@
-package main
+package server_test
 
 import (
 	"net/http"
@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nekidb/rate_limiter/ratelimiter"
+	"github.com/nekidb/rate_limiter/server"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -15,33 +17,9 @@ const (
 	cooldown   = 1 * time.Second
 )
 
-func TestRateLimiter(t *testing.T) {
-	limiter := NewRateLimiter(prefixSize, limit, cooldown)
-
-	ip := "123.123.0.1"
-
-	if limiter.IsLimited(ip) {
-		t.Fatal("Has not to be limited")
-	}
-
-	for i := 0; i < 100; i++ {
-		limiter.Increment(ip)
-	}
-
-	if !limiter.IsLimited(ip) {
-		t.Fatal("Has to be limited")
-	}
-
-	time.Sleep(cooldown + 1*time.Second)
-
-	if limiter.IsLimited(ip) {
-		t.Fatal("Has not to be limited")
-	}
-}
-
 func TestServeHTTP(t *testing.T) {
-	limiter := NewRateLimiter(prefixSize, limit, cooldown)
-	server := NewServer(limiter)
+	limiter := ratelimiter.NewRateLimiter(prefixSize, limit, cooldown)
+	server := server.NewServer(limiter)
 
 	t.Run("returns OK when not limited", func(t *testing.T) {
 		request := createRequest("123.123.0.1")
@@ -72,7 +50,7 @@ func TestServeHTTP(t *testing.T) {
 		server.ServeHTTP(recorder, request)
 
 		assert.Equal(t, http.StatusTooManyRequests, recorder.Code)
-		assert.Equal(t, "Too many requests", recorder.Body.String())
+		assert.Equal(t, "Too Many Requests", recorder.Body.String())
 	})
 }
 
