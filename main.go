@@ -23,7 +23,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if s.limiter.IsLimited(ip) {
 		w.WriteHeader(http.StatusTooManyRequests)
-		w.Write([]byte("Too many requests"))
+		w.Write([]byte("Too Many Requests"))
 		return
 	}
 
